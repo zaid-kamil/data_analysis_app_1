@@ -1,5 +1,3 @@
-### README for Data Analysis App
-
 # Data Analysis Application
 
 This repository contains a data analysis application built using **Streamlit**. The app enables users to visualize and explore data from a dataset of job roles, salaries, and related information.

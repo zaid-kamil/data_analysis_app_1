@@ -2,95 +2,66 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.express as px
-import seaborn as sns
+
+# Sidebar for navigation
+st.sidebar.title("Navigation")
+menu = st.sidebar.radio("Go to", ["Home", "Visualizations", "Upload Dataset"])
 
 @st.cache_data()
-def load_data():
-    return pd.read_csv('datasets/data.csv')
+def load_data(default=True, uploaded_file=None):
+    if default:
+        return pd.read_csv('datasets/data.csv')
+    else:
+        return pd.read_csv(uploaded_file)
 
-with st.spinner("Loading dataset..."):
+if menu == "Upload Dataset":
+    st.title("Upload Your Dataset")
+    uploaded_file = st.file_uploader("Choose a CSV file", type="csv")
+    if uploaded_file:
+        df = load_data(default=False, uploaded_file=uploaded_file)
+        st.success("Dataset loaded successfully!")
+        st.dataframe(df)
+    else:
+        st.info("Please upload a dataset to proceed.")
+else:
+    # Load default dataset with refresh option
+    if st.sidebar.button("Refresh Data"):
+        st.cache_data.clear()
     df = load_data()
 
-st.title('My Datascience App')
-st.dataframe(df)
+    if menu == "Home":
+        st.title('My Data Analysis App')
+        st.markdown("### Welcome to the interactive Data Analysis application.")
+        st.info("Use the navigation menu to explore more features.")
+        st.dataframe(df)
 
+    elif menu == "Visualizations":
+        st.title("Data Visualization")
+        st.markdown("### Explore your data with interactive visualizations.")
 
-st.header('Data Visualization')
-st.subheader('Top 10 Job titles of the employees')
-job_count = df['job_title'].value_counts().head(10)
-
-fig1 = px.bar(job_count, 
-              job_count.index, 
-              job_count.values, 
-              title='Job titles of the employees')
-st.plotly_chart(fig1, use_container_width=True)
-st.subheader("these are the popular jobs")
-st.info(", ".join(job_count.index.tolist()))
-
-# main question from the data set
-st.markdown('''
-## What can we find out?
-- basic categorical analysis
-- salary trend on the basis of
-    - year
-    - experience
-    - employement type
-    - job title
-    - location
-    - company size
-    - currency
-- statistical analysis of diffrent category vs salary          
-''')
-
-categories = df.select_dtypes(exclude=np.number).columns.tolist()
-st.success(f'There are following categories: {", ".join(categories)}')
-for col in categories:
-    counts = df[col].value_counts()
-    if df[col].nunique() > 10:
-        fig = px.bar(counts, 
-                     counts.index, 
-                     counts.values, 
-                     log_y=True,
-                     text = counts.values,
-                     title=f'Distrubution of {col}')
-        fig.update_traces(texttemplate='%{text:.2s}', textposition='outside')
-    else:
-        fig = px.pie(counts,
-                     counts.index,
-                     counts.values,
-                     title=f'Distrubution of {col}')
-    st.plotly_chart(fig, use_container_width=True)
-
-st.subheader("Trend of salary over the years")
-year_wise_df_sum = df.groupby('work_year')[['salary','salary_in_usd']].sum().reset_index()
-year_wise_df_mean = df.groupby('work_year')[['salary','salary_in_usd']].mean().reset_index()
-st.dataframe(year_wise_df_sum, use_container_width=True)
-
-fig = px.bar(year_wise_df_sum, 
-             'work_year', 'salary_in_usd', 
-             title='Salary trend over the years')
-fig2 = px.area(year_wise_df_mean,
-             'work_year', 'salary_in_usd',
-             title='Mean Salary trend over the years')
-c1, c2 = st.columns(2)
-c1.plotly_chart(fig, use_container_width=True)
-c2.plotly_chart(fig2, use_container_width=True)
-
-c1, c2 = st.columns(2)
-cats = c1.multiselect('Select categories', categories)
-graphs = ['box', 'violin', 'bar polar', 'sunburst', 'treemap']
-graph = c2.selectbox('Select graph', graphs) 
-
-for col in cats:
-    if graph == graphs[0]:
-        fig = px.box(df, x=col, y='salary_in_usd', title=f'Salary distribution of {col}')
-    elif graph == graphs[1]:
-        fig = px.violin(df, x=col, y='salary_in_usd', title=f'Salary distribution of {col}')
-    elif graph == graphs[2]:
-        fig = px.bar_polar(df, r='salary_in_usd', theta=col, title=f'Salary distribution of {col}')
-    st.plotly_chart(fig, use_container_width=True)
-if graph == graphs[3]:    
-    fig = px.sunburst(df, path=cats, values='salary_in_usd', title=f'Salary distribution of {col}')
-if graph == graphs[4]:
-    fig = px.treemap(df, path=cats, values='salary_in_usd', title=f'Salary distribution of {col}')
-st.plotly_chart(fig, use_container_width=True)
+        # Job Titles Visualization
+        st.subheader('Top 10 Job Titles')
+        job_count = df['job_title'].value_counts().head(10)
+        fig1 = px.bar(job_count, job_count.index, job_count.values, title='Top 10 Job Titles')
+        st.plotly_chart(fig1, use_container_width=True)
+        
+        # Customizable Graphs
+        st.subheader("Custom Graphs")
+        categories = df.select_dtypes(exclude=np.number).columns.tolist()
+        st.success(f'Available categories: {", ".join(categories)}')
+        
+        selected_category = st.selectbox("Select a category", categories)
+        graph_type = st.radio("Select graph type", ["Bar", "Pie", "Box", "Violin"])
+        
+        if graph_type == "Bar":
+            counts = df[selected_category].value_counts()
+            fig = px.bar(counts, counts.index, counts.values, title=f'Distribution of {selected_category}')
+        elif graph_type == "Pie":
+            counts = df[selected_category].value_counts()
+            fig = px.pie(values=counts.values, names=counts.index, title=f'Distribution of {selected_category}')
+        elif graph_type == "Box":
+            fig = px.box(df, x=selected_category, y='salary_in_usd', title=f'Salary Distribution by {selected_category}')
+        elif graph_type == "Violin":
+            fig = px.violin(df, x=selected_category, y='salary_in_usd', title=f'Salary Distribution by {selected_category}')
+        
+        st.plotly_chart(fig, use_container_width=True)
